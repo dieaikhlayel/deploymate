@@ -1,0 +1,56 @@
+# Deployment configurations
+deployments:
+  - name: web-app
+    repository: git@github.com:yourcompany/web-app.git
+    branch: main
+    deploy_path: /var/www/web-app
+    pre_deploy_commands:
+      - "mkdir -p /var/www/web-app/releases"
+      - "mkdir -p /var/www/web-app/shared"
+    post_deploy_commands:
+      - "cd /var/www/web-app/current && pip install -r requirements.txt"
+      - "cd /var/www/web-app/current && python manage.py migrate"
+      - "sudo systemctl restart web-app"
+    environment_variables:
+      APP_ENV: production
+      DEBUG: "false"
+      DATABASE_URL: "postgresql://user:pass@localhost/db"
+    health_check_url: "https://example.com/health"
+    health_check_timeout: 30
+    servers:
+      - web-server-1
+      - web-server-2
+      
+  - name: api-service
+    repository: git@github.com:yourcompany/api-service.git
+    branch: develop
+    deploy_path: /opt/api-service
+    pre_deploy_commands:
+      - "mkdir -p /opt/api-service/backups"
+    post_deploy_commands:
+      - "cd /opt/api-service/current && npm install"
+      - "cd /opt/api-service/current && npm run build"
+      - "pm2 restart api-service"
+    environment_variables:
+      NODE_ENV: production
+      PORT: "3000"
+    health_check_url: "http://localhost:3000/health"
+    health_check_timeout: 15
+    servers:
+      - staging-server
+      
+  - name: worker-process
+    repository: git@github.com:yourcompany/worker.git
+    branch: main
+    deploy_path: /opt/worker
+    pre_deploy_commands: []
+    post_deploy_commands:
+      - "cd /opt/worker/current && pip install -r requirements.txt"
+      - "sudo systemctl restart worker"
+    environment_variables:
+      QUEUE_URL: "redis://localhost:6379"
+      WORKERS: "4"
+    health_check_url: null
+    health_check_timeout: 0
+    servers:
+      - web-server-1

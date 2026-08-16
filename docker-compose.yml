@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  deploymate:
+    build: .
+    container_name: deploymate
+    ports:
+      - "5000:5000"
+    environment:
+      - DEPLOYMATE_ENV=production
+      - DEPLOYMATE_CONFIG_DIR=/configs
+      - DEPLOYMATE_LOG_LEVEL=INFO
+    volumes:
+      - ./configs:/configs
+      - ./logs:/logs
+      - ~/.ssh:/home/deploymate/.ssh:ro
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - deploymate-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: deploymate-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - deploymate-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: deploymate-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+    networks:
+      - deploymate-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: deploymate-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - deploymate-network
+    depends_on:
+      - prometheus
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  deploymate-network:
+    driver: bridge

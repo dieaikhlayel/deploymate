@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeployMate - Servers</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #667eea;
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .servers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .server-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .server-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .status-healthy {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-unhealthy {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .server-info {
+            margin-bottom: 15px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .info-label {
+            color: #666;
+        }
+        
+        .info-value {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .metrics-bar {
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-fill.warning {
+            background: #ffc107;
+        }
+        
+        .progress-fill.critical {
+            background: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖥️ Servers</h1>
+            <a href="/" class="back-link">← Back to Dashboard</a>
+        </div>
+        
+        <div class="servers-grid" id="serversGrid">
+            <!-- Server cards will be loaded here -->
+        </div>
+    </div>
+    
+    <script>
+        async function loadServers() {
+            try {
+                const response = await fetch('/api/servers');
+                const data = await response.json();
+                
+                const serversGrid = document.getElementById('serversGrid');
+                
+                if (data.servers.length === 0) {
+                    serversGrid.innerHTML = '<p>No servers configured</p>';
+                    return;
+                }
+                
+                // Load health for each server
+                const serverCards = await Promise.all(data.servers.map(async (server) => {
+                    try {
+                        const healthResponse = await fetch(`/api/servers/${server.name}`);
+                        const healthData = await healthResponse.json();
+                        const metrics = healthData.metrics;
+                        
+                        const cpuClass = metrics.cpu_usage > 90 ? 'critical' : metrics.cpu_usage > 70 ? 'warning' : '';
+                        const memClass = metrics.memory_usage > 85 ? 'critical' : metrics.memory_usage > 75 ? 'warning' : '';
+                        const diskClass = metrics.disk_usage > 80 ? 'critical' : metrics.disk_usage > 70 ? 'warning' : '';
+                        
+                        const status = metrics.health_status === 'healthy' ? 'healthy' : 'unhealthy';
+                        const statusText = status === 'healthy' ? 'Healthy' : 'Unhealthy';
+                        
+                        return `
+                            <div class="server-card">
+                                <div class="server-header">
+                                    <div class="server-name">${server.name}</div>
+                                    <span class="status-badge status-${status}">${statusText}</span>
+                                </div>
+                                <div class="server-info">
+                                    <div class="info-row">
+                                        <span class="info-label">Host</span>
+                                        <span class="info-value">${server.host}:${server.port}</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">Environment</span>
+                                        <span class="info-value">${server.environment}</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">Tags</span>
+                                        <span class="info-value">${server.tags.join(', ') || '-'}</span>
+                                    </div>
+                                </div>
+                                <div class="metrics-bar">
+                                    <div class="metric-label">
+                                        <span>CPU Usage</span>
+                                        <span>${metrics.cpu_usage.toFixed(1)}%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill ${cpuClass}" style="width: ${metrics.cpu_usage}%"></div>
+                                    </div>
+                                </div>
+                                <div class="metrics-bar">
+                                    <div class="metric-label">
+                                        <span>Memory Usage</span>
+                                        <span>${metrics.memory_usage.toFixed(1)}%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill ${memClass}" style="width: ${metrics.memory_usage}%"></div>
+                                    </div>
+                                </div>
+                                <div class="metrics-bar">
+                                    <div class="metric-label">
+                                        <span>Disk Usage</span>
+                                        <span>${metrics.disk_usage.toFixed(1)}%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill ${diskClass}" style="width: ${metrics.disk_usage}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } catch (error) {
+                        return `
+                            <div class="server-card">
+                                <div class="server-header">
+                                    <div class="server-name">${server.name}</div>
+                                    <span class="status-badge status-unhealthy">Error</span>
+                                </div>
+                                <p>Failed to fetch health data</p>
+                            </div>
+                        `;
+                    }
+                }));
+                
+                serversGrid.innerHTML = serverCards.join('');
+            } catch (error) {
+                console.error('Failed to load servers:', error);
+                document.getElementById('serversGrid').innerHTML = '<p>Failed to load servers</p>';
+            }
+        }
+        
+        // Load servers on page load
+        loadServers();
+        
+        // Refresh every 60 seconds
+        setInterval(loadServers, 60000);
+    </script>
+</body>
+</html>

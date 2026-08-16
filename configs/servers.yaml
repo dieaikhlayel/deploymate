@@ -1,0 +1,45 @@
+# Server configurations for DeployMate
+servers:
+  - name: web-server-1
+    host: 192.168.1.100
+    port: 22
+    username: deploy
+    key_path: ~/.ssh/id_rsa
+    tags:
+      - web
+      - production
+    environment: production
+    description: "Main web server"
+    
+  - name: web-server-2
+    host: 192.168.1.101
+    port: 22
+    username: deploy
+    key_path: ~/.ssh/id_rsa
+    tags:
+      - web
+      - production
+    environment: production
+    description: "Secondary web server"
+    
+  - name: db-server-1
+    host: 192.168.1.200
+    port: 22
+    username: admin
+    key_path: ~/.ssh/id_rsa
+    tags:
+      - database
+      - production
+    environment: production
+    description: "Primary database server"
+    
+  - name: staging-server
+    host: 10.0.0.50
+    port: 22
+    username: deploy
+    key_path: ~/.ssh/id_rsa_staging
+    tags:
+      - staging
+      - testing
+    environment: staging
+    description: "Staging environment server"

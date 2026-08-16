@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeployMate - Deployments</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #667eea;
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .deployments-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .deployment-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .deployment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .deployment-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .deploy-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s ease;
+        }
+        
+        .deploy-btn:hover {
+            background: #5a67d8;
+        }
+        
+        .deployment-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .info-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .info-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .history-table th,
+        .history-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .history-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .history-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .status-success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .status-failed {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Deployments</h1>
+            <a href="/" class="back-link">← Back to Dashboard</a>
+        </div>
+        
+        <div class="deployments-list" id="deploymentsList">
+            <!-- Deployment cards will be loaded here -->
+        </div>
+    </div>
+    
+    <script>
+        async function loadDeployments() {
+            try {
+                const [deploymentsResponse, historyResponse] = await Promise.all([
+                    fetch('/api/deployments'),
+                    fetch('/api/history')
+                ]);
+                
+                const deploymentsData = await deploymentsResponse.json();
+                const historyData = await historyResponse.json();
+                
+                const deploymentsList = document.getElementById('deploymentsList');
+                
+                if (deploymentsData.deployments.length === 0) {
+                    deploymentsList.innerHTML = '<p>No deployments configured</p>';
+                    return;
+                }
+                
+                deploymentsList.innerHTML = deploymentsData.deployments.map(deployment => {
+                    // Get history for this deployment
+                    const deploymentHistory = historyData.history.filter(h => h.deployment_name === deployment.name);
+                    
+                    return `
+                        <div class="deployment-card">
+                            <div class="deployment-header">
+                                <div class="deployment-name">${deployment.name}</div>
+                                <button class="deploy-btn" onclick="deployApplication('${deployment.name}')">
+                                    Deploy Now
+                                </button>
+                            </div>
+                            <div class="deployment-info">
+                                <div class="info-item">
+                                    <div class="info-label">Repository</div>
+                                    <div class="info-value">${deployment.repository}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Branch</div>
+                                    <div class="info-value">${deployment.branch}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Deploy Path</div>
+                                    <div class="info-value">${deployment.deploy_path}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Servers</div>
+                                    <div class="info-value">${deployment.servers.join(', ') || 'All'}</div>
+                                </div>
+                            </div>
+                            <h3>Recent History</h3>
+                            <table class="history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Server</th>
+                                        <th>Version</th>
+                                        <th>Status</th>
+                                        <th>Duration</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${deploymentHistory.slice(0, 5).map(h => `
+                                        <tr>
+                                            <td>${h.server_name}</td>
+                                            <td>${h.current_version || 'N/A'}</td>
+                                            <td class="status-${h.success ? 'success' : 'failed'}">
+                                                ${h.success ? 'Success' : 'Failed'}
+                                            </td>
+                                            <td>${h.duration.toFixed(2)}s</td>
+                                            <td>${new Date(h.start_time).toLocaleString()}</td>
+                                        </tr>
+                                    `).join('') || '<tr><td colspan="5">No history</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Failed to load deployments:', error);
+                document.getElementById('deploymentsList').innerHTML = '<p>Failed to load deployments</p>';
+            }
+        }
+        
+        async function deployApplication(deploymentName) {
+            if (!confirm(`Are you sure you want to deploy ${deploymentName}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/deploy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        deployment_name: deploymentName,
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert('Deployment completed successfully!');
+                    loadDeployments();
+                } else {
+                    alert(`Deployment failed: ${data.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                alert(`Deployment failed: ${error.message}`);
+            }
+        }
+        
+        // Load deployments on page load
+        loadDeployments();
+    </script>
+</body>
+</html>
